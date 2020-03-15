@@ -1,51 +1,57 @@
-#!/usr/bin/python2
+# -*- coding: utf-8 -*-
 
 from threading import Thread
+from datetime import datetime
 import socket
 
-sock, peers = None, []
+maximum_peers = int(input('Enter quantity of maximum connected peers: '))
+sock, peers = None, {}
+
+server_port = int(input('Enter server port: '))
 
 class Messenger(object):
-    MAXIMUM_PEERS = 15
-
     def __init__(self):
         self.setup()
-        for i in range(Messenger.MAXIMUM_PEERS):
+        for i in range(maximum_peers):
             thread = Messenger.Connection()
             thread.daemon = True
             thread.start()
 
     def setup(self):
         global sock; sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        sock.bind(('127.0.0.1', 13579,))
-        sock.listen(10)
+        sock.bind(('127.0.0.1', server_port))
+        sock.listen(maximum_peers)
 
     def send_message(self, message):
         for peer in peers:
-            peer.sendall(message)
+            peers[peer].sendall(str(message))
 
     class Connection(Thread):
         def __init__(self):
             Thread.__init__(self)
         def run(self):
             peer, addr = sock.accept()
-            peers.append(peer)
+            if len(peers) == maximum_peers:
+                peers[peer].sendall(b'Can\'t connect to server: maximum peers already connected.')
+                peers[peer].close()
+            nickname = input('Enter you nickname: ')
+            peers[nickname] = peer
+            print('Conneted new user from IP: ', addr)
             while True:
                 message = peer.recv(1024)
-                print(message)
+                print(str(message))
                 for other in peers:
-                    if peer != other:
-                        other.sendall(message)
+                    if peer != peers[other]:
+                        other.sendall(bytes(f'[{datetime.now().time().strftime("%H:%M:%S")}] {other}: {str(message)}', 'utf8'))
 
 messenger = Messenger()
 
 try:
-    while 1:
-        message = raw_input()
+    while True:
+        message = bytes(input('Send message to all users: '), 'utf8')
         messenger.send_message(message)
         
 except KeyboardInterrupt:
     sock.close()
     for peer in peers:
-        peer.close()
+        peers[peer].close()

@@ -1,10 +1,18 @@
-#!/usr/bin/python2
+# -*- coding: utf-8 -*-
 
 from threading import Thread
 import socket
 
+server_ip = input('Enter server IP: ')
+server_port = int(input('Enter server port: '))
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 13579,))
+
+try:
+    sock.connect((server_ip, server_port))
+    print(f'Connected to server {server_ip}:{server_port}')
+except:
+    print('Error!')
 
 
 class ReplyHandler(Thread):
@@ -19,6 +27,11 @@ thread = ReplyHandler()
 thread.daemon = True
 thread.start()
 
-while True:
-    message = raw_input()
-    sock.sendall(message)
+try:
+    while True:
+        message = bytes(input('Message: '), 'utf8')
+        sock.sendall(message)
+except KeyboardInterrupt:
+    print('Closing connection..')
+    sock.close()
+    print('Goodbye!'); exit()
